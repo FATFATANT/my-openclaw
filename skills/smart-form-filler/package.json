@@ -1,0 +1,26 @@
+{
+  "name": "smart-form-filler",
+  "version": "1.0.0",
+  "description": "智能表单填充技能 - 根据自然语言自动识别表单类型并调用接口",
+  "keywords": [
+    "api",
+    "automation",
+    "form",
+    "nlp",
+    "openclaw",
+    "skill"
+  ],
+  "license": "MIT",
+  "author": "You",
+  "main": "src/index.js",
+  "scripts": {
+    "test": "node test.js"
+  },
+  "dependencies": {},
+  "openclaw": {
+    "skill": true,
+    "name": "smart-form-filler",
+    "description": "根据自然语言自动识别表单类型，提取字段，调用对应接口",
+    "version": "1.0.0"
+  }
+}
