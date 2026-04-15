@@ -19,6 +19,15 @@ export function createDemoSkills(): Skill[] {
       prompt:
         "When the topic is travel, prefer practical planning advice and mention one concrete next step.",
     },
+    {
+      id: "sql-analyst",
+      title: "SQL Analyst",
+      summary:
+        "Turn natural-language analytics questions into SQL using the available schema tools.",
+      filePath: path.join("examples", "mini-openclaw", "skills", "sql-analyst", "SKILL.md"),
+      prompt:
+        "For SQL tasks, inspect schema first, then write SQL in a fenced code block. Use run_sql_query only for read-only validation or previews.",
+    },
   ];
 }
 

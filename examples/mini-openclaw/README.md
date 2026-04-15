@@ -10,6 +10,7 @@
 - `subagents`：最小版的多智能体协作
 - `tools`：模型可调用的工具
 - `skills`：以 catalog 的形式暴露给模型的专项说明书
+- `nl2sql`：参考 Vanna 风格，把自然语言分析请求转成 SQL
 - `agent runner`：把模型调用、工具调用、流式输出串起来
 
 它不是 OpenClaw 的拷贝，也不追求功能一致，而是把大项目里最重要的执行思路压缩成一个能读懂的小样例。
@@ -20,6 +21,7 @@
 - `event-bus.ts`：事件总线
 - `session-store.ts`：内存版 session store
 - `skills.ts`：skill catalog 与 system prompt
+- `sql.ts`：schema 读取、demo SQL 推断、SQLite 只读执行
 - `tools.ts`：示例工具，包括 `read_skill`
 - `mock-model.ts`：一个模拟模型，演示 ReAct 和 subagent 协作
 - `openai-compatible-model.ts`：可接 OpenAI 兼容接口的真实模型
@@ -49,6 +51,8 @@ OPENCLAW_MINI_MODEL=real
 OPENAI_API_KEY=your-key
 OPENCLAW_MINI_MODEL_NAME=gpt-4o-mini
 OPENAI_BASE_URL=https://api.openai.com/v1
+OPENCLAW_MINI_SQLITE_DB_PATH=/path/to/your.db
+OPENCLAW_MINI_SQL_SCHEMA_PATH=/path/to/schema.txt
 ```
 
 如果你要切到真实模型：
@@ -66,6 +70,12 @@ node --import tsx examples/mini-openclaw/index.ts
 OPENAI_BASE_URL=https://your-endpoint.example/v1
 ```
 
+如果你想让它做自然语言转 SQL：
+
+- 不配置数据库也可以，agent 会基于内置 demo schema 先生成 SQL
+- 如果配置了 `OPENCLAW_MINI_SQL_SCHEMA_PATH`，会优先读取你自己的 schema 文本
+- 如果配置了 `OPENCLAW_MINI_SQLITE_DB_PATH`，`run_sql_query` 可以执行只读 SQL 预览
+
 ## 你会看到什么
 
 1. agent 启动
@@ -74,10 +84,12 @@ OPENAI_BASE_URL=https://your-endpoint.example/v1
 4. 模型决定要不要先调用 `read_skill`
 5. 如果任务可拆分，模型可以调用 `spawn_subagent`
 6. 主 agent 通过 `wait_subagents` 收集子代理结果
-7. 模型再决定要不要调用业务工具，例如 `get_weather`
-8. 工具执行并返回 observation
-9. assistant 再继续输出最终答案
-10. transcript 被保存回 session
+7. 对于 SQL 请求，模型会先调用 `describe_data_schema`
+8. 如有需要，模型再调用 `run_sql_query` 做只读预览
+9. 模型再决定要不要调用业务工具，例如 `get_weather`
+10. 工具执行并返回 observation
+11. assistant 再继续输出最终答案
+12. transcript 被保存回 session
 
 ## 这个样例和真实 OpenClaw 的对应关系
 

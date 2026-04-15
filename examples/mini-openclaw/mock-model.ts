@@ -1,3 +1,4 @@
+import { inferDemoSql, isSqlQuestion } from "./sql.js";
 import type { ModelMessage, ModelStreamEvent, ModelTurnContext } from "./types.js";
 
 function wait(ms: number) {
@@ -54,12 +55,80 @@ async function* emitReasoningAndToolCall(params: {
 export class MockModel {
   async *streamTurn(context: ModelTurnContext): AsyncGenerator<ModelStreamEvent> {
     const userText = getLastUserMessage(context.messages).toLowerCase();
+    const wantsSql = isSqlQuestion(userText);
     const needsWeather = userText.includes("weather") || userText.includes("天气");
     const wantsTravelAdvice =
       userText.includes("travel") ||
       userText.includes("trip") ||
       userText.includes("出门") ||
       userText.includes("packing");
+
+    if (wantsSql) {
+      const generatedSql = inferDemoSql(userText);
+      const wantsExecution =
+        userText.includes("执行") || userText.includes("run") || userText.includes("结果");
+
+      if (!hasToolResult(context.messages, "read_skill", "sql-analyst")) {
+        yield* emitReasoningAndToolCall({
+          reasoning: ["这是一个自然语言转 SQL 任务，我先读取 SQL 分析 skill。"],
+          call: {
+            type: "tool_call",
+            call: {
+              id: "tool-skill-sql",
+              name: "read_skill",
+              args: { skillId: "sql-analyst" },
+            },
+          },
+        });
+        return;
+      }
+
+      if (!hasToolResult(context.messages, "describe_data_schema")) {
+        yield* emitReasoningAndToolCall({
+          reasoning: ["我需要先看 schema，确认表和字段再生成 SQL。"],
+          call: {
+            type: "tool_call",
+            call: {
+              id: "tool-schema",
+              name: "describe_data_schema",
+              args: {},
+            },
+          },
+        });
+        return;
+      }
+
+      if (wantsExecution && !hasToolResult(context.messages, "run_sql_query")) {
+        yield* emitReasoningAndToolCall({
+          reasoning: ["我已经有 SQL 了，再跑一次只读预览确认结果。"],
+          call: {
+            type: "tool_call",
+            call: {
+              id: "tool-run-sql",
+              name: "run_sql_query",
+              args: { sql: generatedSql },
+            },
+          },
+        });
+        return;
+      }
+
+      await wait(100);
+      yield { type: "reasoning_delta", text: "schema 已确认，现在返回 SQL。" };
+      await wait(100);
+      yield {
+        type: "text_delta",
+        text: `我建议使用下面这条 SQL：\n\n\`\`\`sql\n${generatedSql}\n\`\`\``,
+      };
+
+      const sqlPreview = getLastToolText(context.messages, "run_sql_query");
+      if (sqlPreview) {
+        await wait(100);
+        yield { type: "text_delta", text: `\n\n执行预览：${sqlPreview}` };
+      }
+      yield { type: "done" };
+      return;
+    }
 
     if (context.mode === "subagent") {
       const hasTravelSkill = hasToolResult(context.messages, "read_skill", "travel-helper");

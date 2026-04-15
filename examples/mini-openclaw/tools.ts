@@ -1,3 +1,4 @@
+import { loadSqlSchemaText, runReadOnlySql } from "./sql.js";
 import type { AgentTool, Skill } from "./types.js";
 
 function wait(ms: number) {
@@ -50,6 +51,36 @@ export function createDemoTools(skills: Skill[]): AgentTool[] {
           return `Skill not found: ${skillId}`;
         }
         return `SKILL ${skill.id}: ${skill.prompt}`;
+      },
+    },
+    {
+      name: "describe_data_schema",
+      description: "Return the available analytical schema for natural-language-to-SQL tasks.",
+      inputSchema: {
+        type: "object",
+        properties: {},
+      },
+      async execute() {
+        await wait(100);
+        return loadSqlSchemaText();
+      },
+    },
+    {
+      name: "run_sql_query",
+      description: "Execute a read-only SQL query for validation or result preview.",
+      inputSchema: {
+        type: "object",
+        properties: {
+          sql: { type: "string", description: "The read-only SQL query to execute." },
+        },
+        required: ["sql"],
+      },
+      async execute(args) {
+        const sql = typeof args.sql === "string" ? args.sql : "";
+        if (!sql.trim()) {
+          return "Missing SQL query.";
+        }
+        return runReadOnlySql(sql);
       },
     },
     {
