@@ -1,3 +1,8 @@
+"plugin: workbench-claw-service":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "extensions/workbench-claw-service/**"
+          - "docs/plugins/workbench-claw-service.md"
 "plugin: azure-speech":
   - changed-files:
       - any-glob-to-any-file:

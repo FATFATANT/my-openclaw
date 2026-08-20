@@ -1994,6 +1994,15 @@ importers:
         specifier: workspace:*
         version: link:../../packages/plugin-sdk
 
+  extensions/workbench-claw-service:
+    devDependencies:
+      '@openclaw/plugin-sdk':
+        specifier: workspace:*
+        version: link:../../packages/plugin-sdk
+      openclaw:
+        specifier: workspace:*
+        version: link:../..
+
   extensions/whatsapp:
     dependencies:
       audio-decode:

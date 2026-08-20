@@ -52,7 +52,7 @@ Each entry lists the package, distribution route, and description.
 
 ## Core npm package
 
-57 plugins
+58 plugins
 
 - **[active-memory](/plugins/reference/active-memory)** (`openclaw`) - included in OpenClaw. Runs bounded pre-reply memory retrieval and implements per-agent Remember across conversations for eligible private conversations.
 
@@ -163,6 +163,8 @@ Each entry lists the package, distribution route, and description.
 - **[web-readability](/plugins/reference/web-readability)** (`@openclaw/web-readability-plugin`) - included in OpenClaw. Extract readable article content from local HTML web fetch responses.
 
 - **[webhooks](/plugins/reference/webhooks)** (`@openclaw/webhooks`) - included in OpenClaw. Authenticated inbound webhooks that bind external automation to OpenClaw TaskFlows.
+
+- **[workbench-claw-service](/plugins/reference/workbench-claw-service)** (`@openclaw/workbench-claw-service`) - included in OpenClaw. Authenticated HTTP facade for AI Workbench sessions and runs.
 
 - **[workboard](/plugins/reference/workboard)** (`@openclaw/workboard`) - included in OpenClaw. Dashboard workboard for agent-owned issues and sessions.
 

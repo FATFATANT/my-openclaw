@@ -1,0 +1,32 @@
+{
+  "id": "workbench-claw-service",
+  "name": "AI Workbench Claw Service",
+  "activation": {
+    "onStartup": false,
+    "onConfigPaths": ["plugins.entries.workbench-claw-service"]
+  },
+  "mcpServers": {
+    "ai-workbench": {
+      "transport": "streamable-http",
+      "url": "http://127.0.0.1:8080/mcp"
+    }
+  },
+  "configSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "properties": {
+      "defaultAgentId": { "type": "string" },
+      "model": { "type": "string", "default": "deepseek/deepseek-v4-flash" },
+      "mcpUrl": { "type": "string", "default": "http://127.0.0.1:8080/mcp" },
+      "clawTokenTtlSeconds": { "type": "integer", "minimum": 60, "maximum": 86400, "default": 3600 },
+      "runRetentionSeconds": { "type": "integer", "minimum": 60, "maximum": 86400, "default": 3600 }
+    }
+  },
+  "uiHints": {
+    "defaultAgentId": { "label": "Default agent", "help": "Agent used when the workbench request does not select one." },
+    "model": { "label": "Model", "help": "Provider/model reference for workbench runs." },
+    "mcpUrl": { "label": "Workbench MCP URL", "help": "Spring AI Streamable HTTP MCP endpoint." },
+    "clawTokenTtlSeconds": { "label": "Claw token TTL", "advanced": true },
+    "runRetentionSeconds": { "label": "Run retention", "advanced": true }
+  }
+}
