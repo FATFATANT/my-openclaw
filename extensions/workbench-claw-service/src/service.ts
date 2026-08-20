@@ -194,10 +194,11 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
       >[0];
       const workspaceDir = api.runtime.agent.resolveAgentWorkspaceDir(cfg, selectedAgent);
       const { provider, model } = splitModel(config.model);
+      const sessionKey = `agent:${selectedAgent}:workbench:${user.sub}:${session.id}`;
       const result = await api.runtime.agent.runEmbeddedAgent({
         sessionId: session.id,
-        sessionKey: `workbench:${user.sub}:${session.id}`,
-        sandboxSessionKey: `workbench:${user.sub}:${session.id}`,
+        sessionKey,
+        sandboxSessionKey: sessionKey,
         agentId: selectedAgent,
         senderId: user.sub,
         senderIsOwner: false,

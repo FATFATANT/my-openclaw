@@ -1,0 +1,6 @@
+# DeepSeek credential used by the OpenClaw provider.
+api_key=
+
+# HMAC secret shared with mic-front/.myenv AI_WORKBENCH_SHARED_TOKEN_SECRET.
+# This is a server trust secret, not a user login token.
+workbench_token_secret=

@@ -1,6 +1,9 @@
 node_modules
 **/node_modules/
 .env
+.llm
+.workbench-local/
+/openclaw.workbench.json5.last-good
 docker-compose.override.yml
 docker-compose.extra.yml
 docker-compose.sandbox.yml

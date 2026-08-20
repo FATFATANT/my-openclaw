@@ -1,0 +1,50 @@
+{
+  gateway: {
+    mode: "local",
+    auth: {
+      mode: "token",
+      token: "${OPENCLAW_GATEWAY_TOKEN}",
+    },
+  },
+  agents: {
+    ownership: "explicit",
+    defaults: {
+      model: { primary: "deepseek/deepseek-v4-flash" },
+      skipBootstrap: true,
+      contextInjection: "never",
+    },
+    entries: {
+      main: {
+        skills: [],
+        models: {
+          "deepseek/deepseek-v4-flash": { streaming: false },
+        },
+        tools: { profile: "minimal" },
+      },
+      workbench: {
+        tools: { profile: "coding" },
+      },
+    },
+  },
+  tools: {
+    codeMode: { enabled: false },
+  },
+  plugins: {
+    slots: {
+      memory: "none",
+    },
+    entries: {
+      deepseek: { enabled: true },
+      "workbench-claw-service": {
+        enabled: true,
+        config: {
+          defaultAgentId: "workbench",
+          model: "deepseek/deepseek-v4-flash",
+          mcpUrl: "http://127.0.0.1:8080/mcp",
+          clawTokenTtlSeconds: 3600,
+          runRetentionSeconds: 3600,
+        },
+      },
+    },
+  },
+}
