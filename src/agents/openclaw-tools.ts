@@ -535,6 +535,7 @@ export function createOpenClawTools(options?: OpenClawToolsOptions): AnyAgentToo
             config: resolvedConfig,
             requesterAgentIdOverride: sessionAgentId,
             requesterRunId: options?.runId,
+            requesterSenderId: options?.requesterSenderId,
             swarmCollector: options?.swarmCollector,
             workspaceDir: spawnWorkspaceDir,
             inheritedToolAllowlist: options?.inheritedToolAllowlist,

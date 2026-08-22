@@ -289,6 +289,8 @@ export function createSessionsSpawnTool(
     /** Explicit agent ID override for cron/hook sessions where session key parsing may not work. */
     requesterAgentIdOverride?: string;
     requesterRunId?: string;
+    /** Trusted sender id from the admitted parent turn; never sourced from model arguments. */
+    requesterSenderId?: string | null;
     swarmCollector?: boolean;
     /** Backend-derived parent incarnation; never sourced from model arguments. */
     expectedParentSessionId?: string;
@@ -613,6 +615,7 @@ export function createSessionsSpawnTool(
             inheritedToolAllowlist: opts?.inheritedToolAllowlist,
             inheritedToolDenylist: opts?.inheritedToolDenylist,
             requesterRunId: opts?.requesterRunId,
+            requesterSenderId: opts?.requesterSenderId,
           },
           parentExecutionIdentityToken,
         ),

@@ -1,7 +1,18 @@
 import crypto from "node:crypto";
+import fs from "node:fs";
 import type { IncomingMessage, ServerResponse } from "node:http";
-import type { OpenClawPluginApi } from "openclaw/plugin-sdk/plugin-entry";
+import path from "node:path";
+import type {
+  OpenClawPluginApi,
+  OpenClawPluginToolContext,
+} from "openclaw/plugin-sdk/plugin-entry";
 import { runDetachedWebhookWork } from "openclaw/plugin-sdk/webhook-request-guards";
+import {
+  createWorkbenchDelegationTools,
+  WORKBENCH_MENU_TOOL,
+  WORKBENCH_TOOL_BRIDGE_BINDING,
+  type WorkbenchToolBridge,
+} from "./delegation-tools.js";
 import {
   issueClawToken,
   verifyClawToken,
@@ -52,6 +63,46 @@ type Run = {
 
 const BASE_PATH = "/api/v1/workbench";
 const MAX_BODY_BYTES = 1024 * 1024;
+
+type RegisteredRequesterIdentity = WorkbenchIdentity & { expiresAt: number };
+
+function identityRegistryPath(): string {
+  const stateDir = process.env.OPENCLAW_STATE_DIR?.trim();
+  if (!stateDir) {
+    throw new Error("OPENCLAW_STATE_DIR is required for workbench requester identities");
+  }
+  return path.join(stateDir, "workbench-requester-identities.json");
+}
+
+function readRequesterIdentities(): Record<string, RegisteredRequesterIdentity> {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(identityRegistryPath(), "utf8")) as unknown;
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? (parsed as Record<string, RegisteredRequesterIdentity>)
+      : {};
+  } catch {
+    return {};
+  }
+}
+
+function registerRequesterIdentity(user: WorkbenchIdentity, ttlSeconds: number): void {
+  const now = Math.floor(Date.now() / 1000);
+  const identities = Object.fromEntries(
+    Object.entries(readRequesterIdentities()).filter(([, identity]) => identity.expiresAt > now),
+  );
+  identities[user.sub] = { ...user, expiresAt: now + ttlSeconds };
+  const target = identityRegistryPath();
+  fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+  const temporary = `${target}.${process.pid}.${crypto.randomUUID()}.tmp`;
+  fs.writeFileSync(temporary, `${JSON.stringify(identities)}\n`, { encoding: "utf8", mode: 0o600 });
+  fs.renameSync(temporary, target);
+}
+
+function resolveRequesterIdentity(senderId: string): WorkbenchIdentity | null {
+  const identity = readRequesterIdentities()[senderId];
+  if (!identity || identity.expiresAt <= Math.floor(Date.now() / 1000)) return null;
+  return { sub: identity.sub, name: identity.name, role: identity.role };
+}
 
 function resolveConfig(api: OpenClawPluginApi): ServiceConfig {
   const raw = api.pluginConfig ?? {};
@@ -158,7 +209,6 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
   const secret = resolveSecret();
   const sessions = new Map<string, Session>();
   const runs = new Map<string, Run>();
-  const identities = new Map<string, WorkbenchIdentity>();
 
   const emit = (run: Run, type: RunEvent["type"], data: unknown) => {
     const event = { id: run.events.length + 1, type, data } satisfies RunEvent;
@@ -186,7 +236,7 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
     agentId: string | undefined,
     skills: SkillSelection[] | undefined,
   ) => {
-    emit(run, "status", { phase: "running" });
+    emit(run, "status", { phase: "intent", text: "正在识别您的需求..." });
     try {
       const selectedAgent = agentId ?? session.agentId ?? config.defaultAgentId ?? "main";
       const cfg = structuredClone(api.runtime.config.current()) as unknown as Parameters<
@@ -195,6 +245,13 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
       const workspaceDir = api.runtime.agent.resolveAgentWorkspaceDir(cfg, selectedAgent);
       const { provider, model } = splitModel(config.model);
       const sessionKey = `agent:${selectedAgent}:workbench:${user.sub}:${session.id}`;
+      let structuredMenuResult: unknown;
+      const toolBridge: WorkbenchToolBridge = {
+        onProgress: (progress) => emit(run, "status", progress),
+        onStructuredResult: (tool, result) => {
+          if (tool === WORKBENCH_MENU_TOOL) structuredMenuResult = result;
+        },
+      };
       const result = await api.runtime.agent.runEmbeddedAgent({
         sessionId: session.id,
         sessionKey,
@@ -203,6 +260,7 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
         senderId: user.sub,
         senderIsOwner: false,
         messageProvider: "workbench",
+        toolBindings: { [WORKBENCH_TOOL_BRIDGE_BINDING]: toolBridge },
         workspaceDir,
         config: cfg,
         prompt: question,
@@ -225,7 +283,10 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
         },
       });
       emit(run, "final", {
-        text: finalText(result),
+        text:
+          structuredMenuResult === undefined
+            ? finalText(result)
+            : JSON.stringify(structuredMenuResult),
         provider: result.meta.agentMeta?.provider,
         model: result.meta.agentMeta?.model,
         usage: result.meta.agentMeta?.usage,
@@ -281,7 +342,8 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
           json(res, 401, { code: "INVALID_WORKBENCH_TOKEN" });
           return true;
         }
-        identities.set(user.sub, user);
+        registerRequesterIdentity(user, config.clawTokenTtlSeconds);
+        api.logger.info(`workbench requester identity registered: senderId=${user.sub}`);
         const issued = issueClawToken(user, secret, config.clawTokenTtlSeconds);
         json(res, 200, { clawToken: issued.token, expiresAt: issued.expiresAt });
         return true;
@@ -358,10 +420,23 @@ export function createWorkbenchClawService(api: OpenClawPluginApi) {
 
   return {
     handleRequest,
+    createDelegationTools: (context: OpenClawPluginToolContext) =>
+      createWorkbenchDelegationTools({
+        api,
+        context,
+        config: {
+          parentAgentId: config.defaultAgentId ?? "micro-business",
+          model: config.model,
+        },
+      }),
     resolveMcpConnection: ({ requesterSenderId }: { requesterSenderId: string }) => {
-      const user = identities.get(requesterSenderId);
-      if (!user) return null;
+      const user = resolveRequesterIdentity(requesterSenderId);
+      if (!user) {
+        api.logger.warn(`workbench MCP connection denied: requesterSenderId=${requesterSenderId}`);
+        return null;
+      }
       const token = issueClawToken(user, secret, config.clawTokenTtlSeconds).token;
+      api.logger.info("workbench MCP connection resolved for authenticated requester");
       return { url: config.mcpUrl, headers: { Authorization: `Bearer ${token}` } };
     },
   };

@@ -41,6 +41,8 @@ export function buildSubagentLaunchRequest(params: {
   currentMessagingTarget?: string;
   currentChannelId?: string;
   currentMessageId?: string | number;
+  /** Backend-derived parent requester identity; never model-authored. */
+  requesterSenderId?: string | null;
   launchAuthorization?: SubagentLaunchAuthorization;
   swarmSchedulerGroupKey?: string;
   swarmMaxConcurrent: number;
@@ -112,6 +114,9 @@ export function buildSubagentLaunchRequest(params: {
     thinking: params.thinkingOverride,
     timeout: params.runTimeoutSeconds,
     label: params.label,
+    ...(params.requesterSenderId?.trim()
+      ? { internalRequesterSenderId: params.requesterSenderId.trim() }
+      : {}),
     ...(bootstrapContextMode
       ? {
           bootstrapContextMode,

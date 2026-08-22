@@ -112,6 +112,9 @@ export async function handleToolExecutionEnd(
 ) {
   const rawToolName = evt.toolName;
   const toolName = normalizeToolPolicyName(rawToolName);
+  const presentation =
+    ctx.params.toolPresentationByName?.get(rawToolName) ??
+    ctx.params.toolPresentationByName?.get(toolName);
   const hideFromChannelProgress = evt.hideFromChannelProgress === true;
   const toolCallId = evt.toolCallId;
   ctx.state.liveEditDiffStateById.delete(toolCallId);
@@ -417,6 +420,8 @@ export async function handleToolExecutionEnd(
     data: {
       phase: "result",
       name: toolName,
+      ...(presentation?.label ? { label: presentation.label } : {}),
+      ...(presentation?.completed ? { progressText: presentation.completed } : {}),
       toolCallId,
       meta,
       isError: isToolError,
@@ -454,6 +459,8 @@ export async function handleToolExecutionEnd(
     data: {
       phase: "result",
       name: toolName,
+      ...(presentation?.label ? { label: presentation.label } : {}),
+      ...(presentation?.completed ? { progressText: presentation.completed } : {}),
       toolCallId,
       meta,
       isError: isToolError,

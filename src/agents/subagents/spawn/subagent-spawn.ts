@@ -356,6 +356,7 @@ export async function spawnSubagentDirect(
         currentMessagingTarget: ctx.currentMessagingTarget,
         currentChannelId: ctx.currentChannelId,
         currentMessageId: ctx.currentMessageId,
+        requesterSenderId: ctx.requesterSenderId,
         launchAuthorization,
         swarmSchedulerGroupKey,
         swarmMaxConcurrent: swarmConfig.maxConcurrent,

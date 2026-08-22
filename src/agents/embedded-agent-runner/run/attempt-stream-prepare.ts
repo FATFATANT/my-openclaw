@@ -21,6 +21,7 @@ import {
 import { getGlobalHookRunner } from "../../../plugins/hook-runner-global.js";
 import { recordStructuredReplayTrustForToolCall } from "../../agent-tools.before-tool-call.js";
 import { subscribeEmbeddedAgentSession } from "../../embedded-agent-subscribe.js";
+import type { SubscribeEmbeddedAgentSessionParams } from "../../embedded-agent-subscribe.types.js";
 import { cancelPendingAgentQuestionForSession } from "../../harness/gateway-question.js";
 import { runAgentHarnessBeforeAgentFinalizeHook } from "../../harness/lifecycle-hook-helpers.js";
 import {
@@ -97,6 +98,7 @@ export function prepareEmbeddedAttemptStream(input: {
   coreBuiltinToolNames?: ReadonlySet<string>;
   replaySafeToolNames: ReadonlySet<string>;
   sideEffectToolOwners?: ReadonlyMap<string, string>;
+  toolPresentationByName?: SubscribeEmbeddedAgentSessionParams["toolPresentationByName"];
   diagnosticOwner: DiagnosticEmbeddedRunOwner;
 }) {
   const attempt = input.attempt;
@@ -328,6 +330,9 @@ export function prepareEmbeddedAttemptStream(input: {
     coreBuiltinToolNames: input.coreBuiltinToolNames,
     replaySafeToolNames: input.replaySafeToolNames,
     ...(input.sideEffectToolOwners ? { sideEffectToolOwners: input.sideEffectToolOwners } : {}),
+    ...(input.toolPresentationByName
+      ? { toolPresentationByName: input.toolPresentationByName }
+      : {}),
     internalEvents: attempt.internalEvents,
   });
   toolMetasForTerminal = subscription.toolMetas;

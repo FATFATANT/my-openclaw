@@ -237,6 +237,52 @@ function requireString(value: unknown, label: string): string {
   return value;
 }
 
+describe("tool presentation metadata", () => {
+  it("forwards server-provided labels and lifecycle copy to agent events", async () => {
+    const { ctx, onAgentEvent } = createTestContext();
+    ctx.params.toolPresentationByName = new Map([
+      [
+        "demo__search",
+        {
+          label: "Search business menus",
+          started: "Searching business menus...",
+          completed: "Business menu search completed",
+        },
+      ],
+    ]);
+
+    await executeTool(ctx, {
+      toolName: "demo__search",
+      toolCallId: "search-1",
+      args: { query: "viewing appointment" },
+      isError: false,
+      result: { content: [{ type: "text", text: "[]" }] },
+    });
+    await Promise.resolve();
+
+    expect(onAgentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stream: "tool",
+        data: expect.objectContaining({
+          phase: "start",
+          label: "Search business menus",
+          progressText: "Searching business menus...",
+        }),
+      }),
+    );
+    expect(onAgentEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        stream: "tool",
+        data: expect.objectContaining({
+          phase: "result",
+          label: "Search business menus",
+          progressText: "Business menu search completed",
+        }),
+      }),
+    );
+  });
+});
+
 describe("progress_card compatibility plan events", () => {
   it("emits the typed full plan snapshot after a successful write", async () => {
     const { ctx, onAgentEvent } = createTestContext();

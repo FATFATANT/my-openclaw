@@ -84,6 +84,7 @@ function buildAppToolPolicyProjections(params: {
         safeServerName: tool.safeServerName,
         toolName: tool.toolName,
         operation: "tool",
+        ...(tool.progress ? { progress: tool.progress } : {}),
         codexApproval: {
           mode: server?.codexApprovalMode ?? "auto",
           ...(tool.codexAnnotations ? { annotations: tool.codexAnnotations } : {}),
@@ -298,6 +299,7 @@ export function buildBundleMcpToolsFromCatalog(params: {
         toolName: tool.toolName,
         operation: "tool",
         ...(tool.deniedBySession ? { deniedBySession: true } : {}),
+        ...(tool.progress ? { progress: tool.progress } : {}),
         codexApproval: {
           mode: server?.codexApprovalMode ?? "auto",
           ...(tool.codexAnnotations ? { annotations: tool.codexAnnotations } : {}),

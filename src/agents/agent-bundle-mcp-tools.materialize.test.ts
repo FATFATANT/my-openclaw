@@ -271,6 +271,35 @@ describe("createBundleMcpToolRuntime", () => {
     });
   });
 
+  it("preserves MCP presentation metadata on materialized tools", async () => {
+    const runtime = await materializeBundleMcpToolsForRun({
+      runtime: makeToolRuntime({
+        tools: [
+          {
+            serverName: "demo",
+            safeServerName: "demo",
+            toolName: "search",
+            title: "Search business menus",
+            progress: {
+              started: "Searching business menus...",
+              completed: "Business menu search completed",
+            },
+            inputSchema: { type: "object" },
+            fallbackDescription: "search",
+          },
+        ],
+        serverName: "demo",
+      }),
+    });
+
+    const tool = expectDefined(runtime.tools[0], "runtime.tools[0] test invariant");
+    expect(tool.label).toBe("Search business menus");
+    expect(getPluginToolMeta(tool)?.mcp?.progress).toEqual({
+      started: "Searching business menus...",
+      completed: "Business menu search completed",
+    });
+  });
+
   it("marks MCP tools parallel only when the server advertises parallel support", async () => {
     const runtime = await materializeBundleMcpToolsForRun({
       runtime: makeToolRuntime({

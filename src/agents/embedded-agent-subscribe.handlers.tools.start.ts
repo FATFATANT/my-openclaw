@@ -374,6 +374,9 @@ export function handleToolExecutionStart(
     const toolCallId = evt.toolCallId;
     const args = evt.args;
     const runId = ctx.params.runId;
+    const presentation =
+      ctx.params.toolPresentationByName?.get(rawToolName) ??
+      ctx.params.toolPresentationByName?.get(toolName);
     ctx.state.toolExecutionSinceLastBlockReply = true;
     emitExecutionPhaseBestEffort(ctx, {
       phase: "tool_execution_started",
@@ -477,6 +480,8 @@ export function handleToolExecutionStart(
       data: {
         phase: "start",
         name: toolName,
+        ...(presentation?.label ? { label: presentation.label } : {}),
+        ...(presentation?.started ? { progressText: presentation.started } : {}),
         toolCallId,
         args: sanitizeToolArgs(args) as Record<string, unknown>,
         ...(hideFromChannelProgress ? { hideFromChannelProgress: true } : {}),
@@ -505,6 +510,8 @@ export function handleToolExecutionStart(
       data: {
         phase: "start",
         name: toolName,
+        ...(presentation?.label ? { label: presentation.label } : {}),
+        ...(presentation?.started ? { progressText: presentation.started } : {}),
         toolCallId,
         args: sanitizeToolArgs(args) as Record<string, unknown>,
         ...(hideFromChannelProgress ? { hideFromChannelProgress: true } : {}),

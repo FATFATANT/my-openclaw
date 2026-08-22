@@ -8,6 +8,7 @@ CLAW_RUNTIME_DIR="$CLAW_ROOT/.workbench-local"
 CLAW_PID_FILE="$CLAW_RUNTIME_DIR/gateway.pid"
 CLAW_LOG_FILE="$CLAW_RUNTIME_DIR/gateway.log"
 CLAW_GATEWAY_TOKEN_FILE="$CLAW_RUNTIME_DIR/gateway-token"
+CLAW_BUILD_STAMP="$CLAW_RUNTIME_DIR/build-stamp"
 CLAW_PORT="${CLAW_PORT:-18789}"
 
 read_value() {
@@ -35,10 +36,19 @@ resolve_node() {
     printf '%s' "$OPENCLAW_NODE_BIN"
     return
   fi
-  local nvm_node="${NVM_DIR:-$HOME/.nvm}/versions/node/v24.19.0/bin/node"
-  if [[ -x "$nvm_node" ]]; then
-    printf '%s' "$nvm_node"
-    return
+  local nvm_dir="${NVM_DIR:-$HOME/.nvm}" nvm_node requested_version
+  if [[ -s "$nvm_dir/nvm.sh" && -f "$CLAW_ROOT/.nvmrc" ]]; then
+    requested_version="$(tr -d '[:space:]' < "$CLAW_ROOT/.nvmrc")"
+    nvm_node="$({
+      export NVM_DIR="$nvm_dir"
+      # shellcheck disable=SC1090
+      source "$nvm_dir/nvm.sh" --no-use
+      nvm which "$requested_version" 2>/dev/null
+    } || true)"
+    if [[ -n "$nvm_node" && -x "$nvm_node" ]]; then
+      printf '%s' "$nvm_node"
+      return
+    fi
   fi
   command -v node >/dev/null && command -v node || return 1
 }
@@ -49,11 +59,28 @@ check_node() {
   major="${version%%.*}"
   minor="${version#*.}"
   minor="${minor%%.*}"
-  if ! { (( major == 22 && minor >= 22 )) || (( major == 24 && minor >= 15 )) || (( major >= 25 )); }; then
+  if ! { (( major == 22 && minor >= 22 )) || (( major == 24 && minor >= 15 )) || (( major == 25 && minor >= 9 )) || (( major > 25 )); }; then
     echo "OpenClaw requires Node >=22.22.3 or >=24.15.0; current: $version" >&2
-    echo "Upgrade Node, or set OPENCLAW_NODE_BIN to a compatible node executable." >&2
+    echo "Run 'nvm install' in $CLAW_ROOT, or set OPENCLAW_NODE_BIN to a compatible node executable." >&2
     exit 1
   fi
+}
+
+build_is_stale() {
+  [[ -f "$CLAW_ROOT/dist/entry.js" || -f "$CLAW_ROOT/dist/entry.mjs" ]] || return 0
+  [[ -f "$CLAW_BUILD_STAMP" ]] || return 0
+  find "$CLAW_ROOT/src" "$CLAW_ROOT/packages" "$CLAW_ROOT/extensions" "$CLAW_ROOT/ui" \
+    -type f \( -name '*.ts' -o -name '*.tsx' -o -name '*.js' -o -name '*.json' \) \
+    -newer "$CLAW_BUILD_STAMP" -print -quit | grep -q .
+}
+
+ensure_build() {
+  local node_bin="$1"
+  build_is_stale || return 0
+  command -v pnpm >/dev/null || { echo "pnpm is required to build OpenClaw" >&2; exit 1; }
+  echo "OpenClaw source changed; rebuilding ..."
+  (cd "$CLAW_ROOT" && PATH="$(dirname "$node_bin"):$PATH" pnpm build)
+  touch "$CLAW_BUILD_STAMP"
 }
 
 load_secrets() {
@@ -80,6 +107,7 @@ load_secrets() {
   export OPENCLAW_GATEWAY_TOKEN
   export OPENCLAW_CONFIG_PATH="$CLAW_CONFIG_FILE"
   export OPENCLAW_STATE_DIR="$CLAW_RUNTIME_DIR/state"
+  export OPENCLAW_WORKBENCH_AGENT_ROOT="${OPENCLAW_WORKBENCH_AGENT_ROOT:-$CLAW_ROOT/workbench-agents}"
 }
 
 start() {
@@ -96,11 +124,7 @@ start() {
     echo "Dependencies are missing. Run pnpm install in $CLAW_ROOT first." >&2
     exit 1
   }
-  if [[ ! -f "$CLAW_ROOT/dist/entry.js" && ! -f "$CLAW_ROOT/dist/entry.mjs" ]]; then
-    command -v pnpm >/dev/null || { echo "pnpm is required to build OpenClaw" >&2; exit 1; }
-    echo "OpenClaw build output is missing; building once ..."
-    (cd "$CLAW_ROOT" && PATH="$(dirname "$node_bin"):$PATH" pnpm build)
-  fi
+  ensure_build "$node_bin"
   mkdir -p "$CLAW_RUNTIME_DIR/state"
   : > "$CLAW_LOG_FILE"
   (

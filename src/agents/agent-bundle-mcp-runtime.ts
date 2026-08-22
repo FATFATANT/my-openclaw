@@ -818,6 +818,19 @@ export function createSessionMcpRuntime(params: {
                       ? (metadata.ui as { resourceUri?: unknown; visibility?: unknown })
                       : undefined;
                   const rawResourceUri = uiMeta?.resourceUri ?? metadata?.["ui/resourceUri"];
+                  const rawProgress = metadata?.["workbench/progress"];
+                  const progressMeta =
+                    rawProgress && typeof rawProgress === "object" && !Array.isArray(rawProgress)
+                      ? (rawProgress as { started?: unknown; completed?: unknown })
+                      : undefined;
+                  const progressStarted = sanitizeMcpMetadataText(
+                    typeof progressMeta?.started === "string" ? progressMeta.started : undefined,
+                  );
+                  const progressCompleted = sanitizeMcpMetadataText(
+                    typeof progressMeta?.completed === "string"
+                      ? progressMeta.completed
+                      : undefined,
+                  );
                   const uiResourceUri =
                     typeof rawResourceUri === "string" && rawResourceUri.startsWith("ui://")
                       ? rawResourceUri
@@ -828,6 +841,14 @@ export function createSessionMcpRuntime(params: {
                     safeServerName,
                     toolName,
                     title: tool.title,
+                    ...(progressStarted || progressCompleted
+                      ? {
+                          progress: {
+                            ...(progressStarted ? { started: progressStarted } : {}),
+                            ...(progressCompleted ? { completed: progressCompleted } : {}),
+                          },
+                        }
+                      : {}),
                     description: sanitizeMcpMetadataText(tool.description),
                     inputSchema: tool.inputSchema,
                     fallbackDescription: `Provided by bundle MCP server "${serverName}" (${launchDescription}).`,

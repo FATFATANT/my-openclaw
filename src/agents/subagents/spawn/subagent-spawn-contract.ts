@@ -60,6 +60,8 @@ export type SpawnSubagentContext = {
   inheritedToolAllowlist?: string[];
   inheritedToolDenylist?: string[];
   requesterRunId?: string;
+  /** Trusted sender id inherited from the admitted parent turn. */
+  requesterSenderId?: string | null;
 };
 
 export type SpawnSubagentResult = {

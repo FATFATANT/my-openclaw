@@ -135,6 +135,11 @@ export type SubscribeEmbeddedAgentSessionParams = {
   replaySafeToolNames?: ReadonlySet<string>;
   /** Canonical owner keys for unique plugin tools that can change durable state. */
   sideEffectToolOwners?: ReadonlyMap<string, string>;
+  /** User-facing labels and lifecycle copy attached to the concrete tools for this run. */
+  toolPresentationByName?: ReadonlyMap<
+    string,
+    { label?: string; started?: string; completed?: string }
+  >;
   /**
    * Exact raw names allowed to emit local media paths for this run.
    * Includes core trusted tools plus bundled plugin tools proven from the

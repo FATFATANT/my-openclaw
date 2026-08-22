@@ -51,6 +51,10 @@ export type McpCatalogTool = {
   safeServerName: string;
   toolName: string;
   title?: string;
+  progress?: {
+    started?: string;
+    completed?: string;
+  };
   description?: string;
   inputSchema: TSchema;
   fallbackDescription: string;

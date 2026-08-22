@@ -5,6 +5,13 @@
     "onStartup": false,
     "onConfigPaths": ["plugins.entries.workbench-claw-service"]
   },
+  "contracts": {
+    "tools": ["workbench_delegate_menu_search", "workbench_delegate_form_assistance"]
+  },
+  "toolMetadata": {
+    "workbench_delegate_menu_search": { "optional": true },
+    "workbench_delegate_form_assistance": { "optional": true }
+  },
   "mcpServers": {
     "ai-workbench": {
       "transport": "streamable-http",

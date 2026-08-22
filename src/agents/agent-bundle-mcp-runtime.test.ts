@@ -619,6 +619,17 @@ describe("session MCP runtime", () => {
           inputSchema: { type: "object" },
           _meta: { ui: { visibility: [] } },
         },
+        {
+          name: "with-progress",
+          title: "Search business menus",
+          inputSchema: { type: "object" },
+          _meta: {
+            "workbench/progress": {
+              started: "Searching business menus...",
+              completed: "Business menu search completed",
+            },
+          },
+        },
       ],
     });
     const runtime = createSessionMcpRuntime({
@@ -647,6 +658,14 @@ describe("session MCP runtime", () => {
             uiResourceUri: "ui://demo/legacy",
           }),
           expect.objectContaining({ toolName: "hidden", uiVisibility: [] }),
+          expect.objectContaining({
+            toolName: "with-progress",
+            title: "Search business menus",
+            progress: {
+              started: "Searching business menus...",
+              completed: "Business menu search completed",
+            },
+          }),
         ]),
       );
     } finally {

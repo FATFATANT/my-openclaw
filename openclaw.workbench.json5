@@ -10,8 +10,10 @@
     ownership: "explicit",
     defaults: {
       model: { primary: "deepseek/deepseek-v4-flash" },
-      skipBootstrap: true,
-      contextInjection: "never",
+      // Every run must see the agent workspace instructions (AGENTS.md),
+      // otherwise the orchestrator cannot apply the domain routing rules.
+      contextInjection: "always",
+      subagents: { runTimeoutSeconds: 120 },
     },
     entries: {
       main: {
@@ -21,6 +23,28 @@
         },
         tools: { profile: "minimal" },
       },
+      "micro-business": {
+        name: "小微业务智能体",
+        workspace: "${OPENCLAW_WORKBENCH_AGENT_ROOT}/micro-business",
+        skills: [],
+        tools: {
+          profile: "messaging",
+          // Domain delegation is server-bound; the model cannot choose an arbitrary child.
+          alsoAllow: ["workbench_delegate_menu_search", "workbench_delegate_form_assistance"],
+        },
+      },
+      "menu-search": {
+        name: "菜单搜索智能体",
+        workspace: "${OPENCLAW_WORKBENCH_AGENT_ROOT}/menu-search",
+        skills: ["menu-search"],
+        tools: { profile: "coding" },
+      },
+      "form-assistant": {
+        name: "辅助填单智能体",
+        workspace: "${OPENCLAW_WORKBENCH_AGENT_ROOT}/form-assistant",
+        skills: ["survey-form-assistance"],
+        tools: { profile: "coding" },
+      },
       workbench: {
         tools: { profile: "coding" },
       },
@@ -28,6 +52,18 @@
   },
   tools: {
     codeMode: { enabled: false },
+    swarm: { enabled: true },
+  },
+  // Keep the MCP server in the normal agent runtime configuration as well as
+  // the plugin manifest. The plugin resolver supplies the per-user bearer
+  // token at request time, so no user token is persisted here.
+  mcp: {
+    servers: {
+      "ai-workbench": {
+        transport: "streamable-http",
+        url: "http://127.0.0.1:8080/mcp",
+      },
+    },
   },
   plugins: {
     slots: {
@@ -38,7 +74,7 @@
       "workbench-claw-service": {
         enabled: true,
         config: {
-          defaultAgentId: "workbench",
+          defaultAgentId: "micro-business",
           model: "deepseek/deepseek-v4-flash",
           mcpUrl: "http://127.0.0.1:8080/mcp",
           clawTokenTtlSeconds: 3600,

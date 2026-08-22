@@ -4,11 +4,13 @@ import {
   withOwnedSessionTranscriptWrites,
 } from "../../../config/sessions/transcript-write-context.js";
 import { createDiagnosticEmbeddedRunOwner } from "../../../logging/diagnostic-run-activity.js";
+import { getPluginToolMeta } from "../../../plugins/tools.js";
 import {
   mergeAgentRunAttemptTerminal,
   projectAgentRunAttemptTerminal,
   type AgentRunAttemptTerminal,
 } from "../../agent-run-terminal-outcome.js";
+import type { AnyAgentTool } from "../../tools/common.js";
 import { log } from "../logger.js";
 import type { EmbeddedAgentQueueHandle } from "../runs.js";
 import { flushPendingToolResultsAfterIdle } from "../wait-for-idle-before-flush.js";
@@ -212,6 +214,19 @@ export async function runEmbeddedAttemptExecutionPhase(
     coreBuiltinToolNames,
     replaySafeToolNames,
     sideEffectToolOwners,
+    toolPresentationByName: new Map(
+      allCustomTools.map((tool) => {
+        const mcp = getPluginToolMeta(tool as AnyAgentTool)?.mcp;
+        return [
+          tool.name,
+          {
+            ...(tool.label ? { label: tool.label } : {}),
+            ...(mcp?.progress?.started ? { started: mcp.progress.started } : {}),
+            ...(mcp?.progress?.completed ? { completed: mcp.progress.completed } : {}),
+          },
+        ] as const;
+      }),
+    ),
     diagnosticOwner,
   });
   input.lifecycle.setToolSearchCatalogExecutor(preparedStream.toolSearchCatalogExecutor);

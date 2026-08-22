@@ -239,12 +239,17 @@ export function startAgentRunExecution(params: {
         runId: params.runId,
         sessionEntry: params.sessionEntry,
       });
+      const inheritedRequesterSenderId =
+        params.client?.internal?.agentRunTracking === "native_subagent" &&
+        typeof params.request.internalRequesterSenderId === "string"
+          ? params.request.internalRequesterSenderId.trim() || undefined
+          : undefined;
       const runContext = {
         messageChannel:
           restartRecoveryChannelContext?.channel ?? params.delivery.originMessageChannel,
         accountId:
           restartRecoveryChannelContext?.requesterAccountId ?? params.delivery.resolvedAccountId,
-        senderId: restartRecoveryChannelContext?.requesterSenderId,
+        senderId: restartRecoveryChannelContext?.requesterSenderId ?? inheritedRequesterSenderId,
         groupId: params.groupId,
         groupChannel: params.groupChannel,
         groupSpace: params.groupSpace,

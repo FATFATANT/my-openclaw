@@ -61,6 +61,11 @@ export type PluginToolMcpMeta = {
   safeServerName: string;
   toolName: string;
   operation: "tool" | "resources_list" | "resources_read" | "prompts_list" | "prompts_get";
+  /** Optional user-facing lifecycle copy supplied by the MCP server's tool metadata. */
+  progress?: {
+    started?: string;
+    completed?: string;
+  };
   deniedBySession?: true;
   codexApproval?: {
     mode: McpCodexToolApprovalMode;

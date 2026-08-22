@@ -31,12 +31,22 @@ function finishingChatRunId(
   source: SessionMessageApplySource,
   message: unknown,
   scope: SessionProjectionScope,
+  requireContentMatch = false,
 ): string | null {
   if (source.kind !== "live") {
     return null;
   }
   if (source.activeRunId) {
-    return source.activeRunId;
+    if (!requireContentMatch) {
+      return source.activeRunId;
+    }
+    const projected = getChatSessionProjection(state, state.chatMessages, scope).runs[
+      source.activeRunId
+    ]?.message;
+    const projectedText = extractText(projected)?.trim();
+    return projectedText && projectedText === extractText(message)?.trim()
+      ? source.activeRunId
+      : null;
   }
   const recent = state.lastLocalTerminalReconcile;
   const runId = recent?.sessionKey === state.sessionKey ? recent.runId : null;
@@ -82,8 +92,8 @@ export function applySessionMessagePayload(
     incoming.id &&
     !incoming.isImported &&
     !incoming.runId &&
-    runActive !== true
-      ? finishingChatRunId(state, source, sourceMessage, scope)
+    (runActive !== true || (source.kind === "live" && source.activeRunId !== null))
+      ? finishingChatRunId(state, source, sourceMessage, scope, runActive === true)
       : null;
   if (
     source.kind === "live" &&

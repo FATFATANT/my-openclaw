@@ -343,6 +343,7 @@ type ToolHandlerParams = Pick<
   | "coreBuiltinToolNames"
   | "replaySafeToolNames"
   | "sideEffectToolOwners"
+  | "toolPresentationByName"
   | "toolResultFormat"
   | "toolProgressDetail"
   | "sourceReplyDeliveryMode"

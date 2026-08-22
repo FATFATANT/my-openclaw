@@ -254,9 +254,22 @@ describe("canonical session message recovery", () => {
   });
 
   it.each([
-    { name: "the persisted reply lands after the terminal event", persistedFirst: false },
-    { name: "the persisted reply lands before the terminal event", persistedFirst: true },
-  ])("renders one assistant reply when $name", async ({ persistedFirst }) => {
+    {
+      name: "the persisted reply lands after the terminal event",
+      persistedFirst: false,
+      persistedRunActive: false,
+    },
+    {
+      name: "the persisted reply lands before the terminal event",
+      persistedFirst: true,
+      persistedRunActive: false,
+    },
+    {
+      name: "the persisted reply lands while the run is still active",
+      persistedFirst: true,
+      persistedRunActive: true,
+    },
+  ])("renders one assistant reply when $name", async ({ persistedFirst, persistedRunActive }) => {
     const activeRunId = "active-run";
     const replyText = "Here is the answer.";
     const prompt = {
@@ -298,7 +311,7 @@ describe("canonical session message recovery", () => {
       event: "session.message",
       payload: {
         sessionKey: state.sessionKey,
-        hasActiveRun: false,
+        hasActiveRun: persistedRunActive,
         messageId: "persisted-reply",
         messageSeq: 2,
         message: persistedReply,
@@ -314,6 +327,20 @@ describe("canonical session message recovery", () => {
         message: { role: "assistant", content: [{ type: "text", text: replyText }] },
       },
     } satisfies Parameters<typeof handlePageGatewayEvent>[1];
+
+    if (persistedRunActive) {
+      handlePageGatewayEvent(state, {
+        type: "event",
+        event: "chat",
+        payload: {
+          sessionKey: state.sessionKey,
+          runId: activeRunId,
+          state: "delta",
+          deltaText: replyText,
+          message: { role: "assistant", content: [{ type: "text", text: replyText }] },
+        },
+      });
+    }
 
     for (const event of persistedFirst
       ? [persistedEvent, terminalEvent]
