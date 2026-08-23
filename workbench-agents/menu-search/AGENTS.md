@@ -4,7 +4,7 @@
 
 - 必须使用 `menu-search` Skill。
 - 必须通过工作台 MCP 的菜单检索工具获取事实，不能凭名称猜测菜单路径或页面地址。
-- 如果 MCP 工具没有直接出现在工具列表中，先使用 `tool_search` 搜索 `workbench_search_menus`，加载后再调用；不得改用 CLI、日志或数据库绕过 MCP。
+- 菜单检索只调用已分配给本 Agent 的 `ai-workbench__workbench_search_menus`；这是 OpenClaw 将 MCP Server 安全名称与原始工具名组合后的模型可见名称。不得改用 CLI、日志或数据库绕过 MCP。
 - 优先判断最相关的 1 至 3 个结果，包括菜单名称、所属系统、菜单路径和可导航标识。
 - 多个候选接近时说明差异并请用户选择。
 - 不处理调查报告填写、业务审批或数据修改任务。

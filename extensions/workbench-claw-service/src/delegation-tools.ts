@@ -20,6 +20,7 @@ export type WorkbenchProgress = {
 };
 
 export type WorkbenchToolBridge = {
+  abortSignal?: AbortSignal;
   onProgress: (progress: WorkbenchProgress) => void;
   onStructuredResult: (tool: string, result: unknown) => void;
 };
@@ -68,7 +69,7 @@ function requestParam(raw: unknown): { request: string; context?: string } {
   return { request, ...(context ? { context } : {}) };
 }
 
-function toolResultText(value: string): unknown {
+export function parseWorkbenchResultText(value: string): unknown {
   const trimmed = value.trim();
   const candidate = trimmed.startsWith("```json")
     ? trimmed.slice(7, trimmed.endsWith("```") ? -3 : undefined).trim()
@@ -78,7 +79,17 @@ function toolResultText(value: string): unknown {
   try {
     return JSON.parse(candidate) as unknown;
   } catch {
-    return { schema: "workbench.response.v1", type: "text", message: trimmed };
+    const fences = trimmed.matchAll(/```(?:json)?\s*([\s\S]*?)```/gi);
+    let structured: unknown;
+    for (const fence of fences) {
+      try {
+        const parsed = JSON.parse(fence[1]?.trim() ?? "") as { schema?: unknown };
+        if (parsed?.schema === "workbench.response.v1") structured = parsed;
+      } catch {
+        // Continue looking: models sometimes emit an explanatory fence before the payload.
+      }
+    }
+    return structured ?? { schema: "workbench.response.v1", type: "text", message: trimmed };
   }
 }
 
@@ -161,6 +172,7 @@ async function runDelegate(params: {
     timeoutMs: params.api.runtime.agent.resolveAgentTimeoutMs({ cfg }),
     runId: crypto.randomUUID(),
     trigger: "manual",
+    abortSignal: bridge?.abortSignal,
     onExecutionPhase: (event) => {
       if (event.phase === "model_call_started") {
         bridge?.onProgress({
@@ -193,7 +205,7 @@ async function runDelegate(params: {
       });
     },
   });
-  const structured = toolResultText(finalText(result));
+  const structured = parseWorkbenchResultText(finalText(result));
   bridge?.onStructuredResult(params.sourceTool, structured);
   bridge?.onProgress({
     phase: "result",
