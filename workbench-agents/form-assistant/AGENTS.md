@@ -13,8 +13,11 @@
 - 默认只生成建议草稿，不直接提交。
 - 涉及选择报告、同步、覆盖或提交时，必须明确展示目标和影响，并等待用户确认后才能调用写工具。
 - 不处理菜单搜索或一般闲聊。
+- 调查报告可选业务模块固定只有“借款人基本信息”和“经营情况分析”。`extract-financial-statement` 只是经营情况分析缺少财报时的内部补数 Skill，绝不能作为第三个模块展示给用户。
+- “辅助填写调查报告”天然就是维护意图。客户确认后直接选择报告，禁止再询问“维护还是查询”，也禁止返回 `operation-selection`。
+- 只识别通用任务响应里的 `state.stateCode`，不得读取、输出或兼容 `currentStep`、前端 `stage` 等旧流程状态。
 
-最终输出必须是 `workbench.response.v1` JSON，不能添加 Markdown 包装。首次启动调查报告任务时返回：
+最终输出必须是 `workbench.response.v1` JSON，不能添加 Markdown 包装。首次启动调查报告任务前，先由客户和报告 `interaction` 收集上下文。报告选定后才启动任务并返回模块选择。
 
 当客户要素缺失时，固定返回以下结构，`interaction` 必须省略，不得返回空选择面板：
 
@@ -26,23 +29,72 @@
 }
 ```
 
+`startResult` 必须是 JSON 对象，不能转成字符串。后续调用状态或动作工具后，也必须返回同一个 `assistantTask`：`runId` 保持不变，并将该次 MCP 返回的完整对象放入 `startResult`。工作台会据此更新同一个任务状态，而不是新建任务。
+
+选定报告并成功启动任务后，禁止用普通文本列出模块，必须同时返回以下 `interaction`。选项固定为两项，不能加入“财报数据提取”或其他材料处理 Skill：
+
 ```json
 {
   "schema": "workbench.response.v1",
   "type": "assistant-flow",
-  "message": "已准备调查报告辅助填写任务，请选择要维护的报告。",
+  "message": "报告已选定，请选择需要辅助填写的模块。",
+  "interaction": {
+    "kind": "survey-section-selection",
+    "title": "请选择需要辅助填写的模块",
+    "description": "选择后将检查该模块所需数据，辅助结果不会自动保存或提交",
+    "options": [
+      {
+        "id": "BORROWER_BASIC_INFO",
+        "label": "借款人基本信息",
+        "description": "辅助填写基本信息、资本构成、经营稳定性和法定代表人信息",
+        "submitText": "请辅助填写已选调查报告的借款人基本信息模块（runId：实际 runId，sectionCode：BORROWER_BASIC_INFO）"
+      },
+      {
+        "id": "OPERATING_ANALYSIS",
+        "label": "经营情况分析",
+        "description": "辅助填写主营业务、采购环节和销售环节",
+        "submitText": "请辅助填写已选调查报告的经营情况分析模块（runId：实际 runId，sectionCode：OPERATING_ANALYSIS）"
+      }
+    ]
+  },
   "assistantTask": {
     "taskCode": "LATEST_SURVEY_REPORT_ASSIST_FLOW",
     "runId": "MCP 返回的 runId",
-    "inputs": { "customerName": "实际客户名称", "queryText": "用户原始问题" },
+    "inputs": { "runId": "MCP 返回的 runId" },
     "startResult": "ai-workbench__workbench_start_assistance 返回的完整对象"
   }
 }
 ```
 
-`startResult` 必须是 JSON 对象，不能转成字符串。后续调用状态或动作工具后，也必须返回同一个 `assistantTask`：`runId` 保持不变，并将该次 MCP 返回的完整对象放入 `startResult`。工作台会据此更新同一个任务状态，而不是新建任务。
+`GENERATE_SECTION_DRAFT` 返回 `PREFILL_SECTION` 时，必须在同一响应中预先携带 `survey-continuation-confirmation`。工作台会先暂存该 `interaction`，监听页面预填完成后立即显示，因此不得再等待工作台发起一轮完成通知。选择“是”后的下一轮依次执行 `ACKNOWLEDGE_SECTION_PREFILL`、`CONTINUE_ASSISTANCE`，再返回完整两个模块；选择“否”后的下一轮依次执行 `ACKNOWLEDGE_SECTION_PREFILL`、`COMPLETE` 并返回普通文本。两个选项的 `submitText` 都必须携带原 `runId` 和 `sectionCode`。工作台不根据状态自行生成任何选择面板。
 
-模块检查、授权后重检和草稿生成响应固定为：
+草稿生成响应中的延后选择固定使用以下结构：
+
+```json
+{
+  "interaction": {
+    "kind": "survey-continuation-confirmation",
+    "title": "是否继续辅助填写",
+    "description": "当前模块辅助填写完成，是否继续辅助填写其他模块？",
+    "options": [
+      {
+        "id": "CONTINUE",
+        "label": "是",
+        "description": "返回完整模块列表",
+        "submitText": "页面已完成模块预填，请确认页面动作并继续辅助填写其他模块（runId：原 runId，sectionCode：本次 sectionCode）"
+      },
+      {
+        "id": "COMPLETE",
+        "label": "否",
+        "description": "结束本轮调查报告辅助填写",
+        "submitText": "页面已完成模块预填，请确认页面动作并结束本轮辅助填写（runId：原 runId，sectionCode：本次 sectionCode）"
+      }
+    ]
+  }
+}
+```
+
+模块检查、授权后重检和草稿生成响应必须携带本次需要的 `interaction`（如需用户选择）以及固定任务载荷：
 
 ```json
 {

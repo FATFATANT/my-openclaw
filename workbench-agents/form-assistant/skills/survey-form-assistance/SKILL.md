@@ -16,18 +16,23 @@ description: 辅助填写小微业务调查报告或调查表，包括查询调�
 1. 用户只说“帮我填调查报告”且没有客户时，直接追问客户名称。这一步严禁调用任何 MCP，严禁查待办/业务反推客户，严禁使用默认客户。
 2. 用户给出客户名称或简称后，调用 `ai-workbench__workbench_search_customers`。唯一结果返回确认/取消的 `interaction`；多个结果返回完整候选 `interaction`；工作台会把它们显示在输入区，AI 消息区只显示普通文本“等待你的回答”。没有结果时请用户换关键词。
 3. 用户确认客户后调用 `ai-workbench__workbench_search_survey_reports`，通过同一输入区选择协议返回该客户名下全部报告，不替用户默认选择最新一期。
-4. 用户选定报告后调用 `ai-workbench__workbench_start_assistance`，`taskCode` 固定为 `LATEST_SURVEY_REPORT_ASSIST_FLOW`，`inputs` 必须同时包含 `customerName`、`customerNo`、`reportId`。返回任务状态后，工作台会立即打开该报告页面并让用户在输入区选择模块。
+4. “辅助填写”直接视为维护任务。用户选定报告后调用 `ai-workbench__workbench_start_assistance`，`taskCode` 固定为 `LATEST_SURVEY_REPORT_ASSIST_FLOW`，`inputs` 必须同时包含 `customerName`、`customerNo`、`reportId`。禁止增加“维护还是查询”步骤。返回任务状态后，必须按智能体 `AGENTS.md` 返回 `survey-section-selection`，让工作台在输入区展示“借款人基本信息”和“经营情况分析”两个选项。
 5. 有 `runId` 时调用 `ai-workbench__workbench_get_assistance_state`，只从 `availableActions` 中选择下一动作。
 6. 用户选择模块后调用 `ai-workbench__workbench_execute_assistance_action` 执行 `CHECK_SECTION_DATA`。借款人基本信息使用 `fill-borrower-basic-info`；经营情况分析使用 `fill-operating-analysis`。页面上传走 `WORKBENCH_UI`；用户点击已完成授权后，用 `authorizationCompleted=true` 再执行 `CHECK_SECTION_DATA`。每次动作结果都必须通过 `assistantTask.startResult` 完整传回工作台。
 7. 状态进入 `GENERATE_SECTION` 后执行 `GENERATE_SECTION_DRAFT`。最终返回的 `fields` 是页面 SDK 的输入，只能预填，不得自动保存或提交。
-8. 明确区分“已有业务事实”“模型建议文本”和“缺失材料”。不得把建议写成已核实事实。
-9. 默认把草稿返回给用户审阅。写入、同步或提交动作必须取得用户明确确认。
+8. `GENERATE_SECTION_DRAFT` 返回 `PREFILL_SECTION` 时，在同一响应中预先返回是否继续的 `interaction`；工作台会在页面预填完成后立即揭示它，不再另发完成通知。用户选择继续时依次执行 `ACKNOWLEDGE_SECTION_PREFILL`、`CONTINUE_ASSISTANCE` 并返回完整模块列表；选择结束时依次执行 `ACKNOWLEDGE_SECTION_PREFILL`、`COMPLETE`。
+9. 全程只使用 `state.stateCode`，不得兼容 `currentStep` 或工作台 `stage`。
+10. 明确区分“已有业务事实”“模型建议文本”和“缺失材料”。不得把建议写成已核实事实。
+11. 默认把草稿返回给用户审阅。写入、同步或提交动作必须取得用户明确确认。
 
 ## 模块要求
 
 - `BORROWER_BASIC_INFO` / 借款人基本信息：调用客户信息和工商信息 MCP；忽略内外负面信息说明。
 - `OPERATING_ANALYSIS` / 经营情况分析：必须同时具备财报数据和一码授权数据；只填写主营业务、采购环节和销售环节。财报缺失时使用 `extract-financial-statement`。
 - `FINANCING_BORROWING` 暂不支持，不展示、不生成草稿。
+- `extract-financial-statement` 是缺少财报时的内部材料处理 Skill，不是调查报告业务模块，任何模块选择面板或模块文字列表都不得展示它。
+
+模块预填结束后，是否继续的选择面板也必须由 Skill 通过草稿生成响应中的 `interaction` 预先返回。工作台只暂存并在页面完成事件后立即渲染响应，不根据任务状态拼装步骤，也不应为页面完成事件再请求一轮 Claw。继续时重新展示完整两个业务模块，包括本轮已经填写过的模块；结束时完成当前 run，后续消息重新按用户意图路由。
 
 新增调查报告模块时，在本节增加 `sectionCode` 及所需数据类型，后端的 `QUERY_SURVEY_SECTION_STATUS` 返回对应 `missingDataItems.actionType`（`UPLOAD` / `AUTHORIZE` / 后续可扩展类型），前端依据动作类型通用渲染，不为每个模块重新复制工作流。
 
