@@ -76,10 +76,13 @@ build_is_stale() {
 
 ensure_build() {
   local node_bin="$1"
+  local runtime_path="$(dirname "$node_bin"):$PATH"
+  local pnpm_bin=""
   build_is_stale || return 0
-  command -v pnpm >/dev/null || { echo "pnpm is required to build OpenClaw" >&2; exit 1; }
+  pnpm_bin="$(PATH="$runtime_path" command -v pnpm 2>/dev/null || true)"
+  [[ -n "$pnpm_bin" ]] || { echo "pnpm is required to build OpenClaw" >&2; exit 1; }
   echo "OpenClaw source changed; rebuilding ..."
-  (cd "$CLAW_ROOT" && PATH="$(dirname "$node_bin"):$PATH" pnpm build)
+  (cd "$CLAW_ROOT" && PATH="$runtime_path" "$pnpm_bin" build)
   touch "$CLAW_BUILD_STAMP"
 }
 
