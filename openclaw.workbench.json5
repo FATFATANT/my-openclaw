@@ -62,6 +62,13 @@
           ],
         },
       },
+      "document-extractor": {
+        name: "调查报告 Word 提取智能体",
+        workspace: "${OPENCLAW_WORKBENCH_AGENT_ROOT}/document-extractor",
+        skills: ["extract-survey-word"],
+        // This agent receives Java-parsed Markdown and has no reason to call MCP or local tools.
+        tools: { profile: "minimal" },
+      },
       workbench: {
         tools: { profile: "coding" },
       },
