@@ -130,7 +130,13 @@ function registerRequesterIdentity(user: WorkbenchIdentity, ttlSeconds: number):
 function resolveRequesterIdentity(senderId: string): WorkbenchIdentity | null {
   const identity = readRequesterIdentities()[senderId];
   if (!identity || identity.expiresAt <= Math.floor(Date.now() / 1000)) return null;
-  return { sub: identity.sub, name: identity.name, role: identity.role };
+  return {
+    sub: identity.sub,
+    name: identity.name,
+    role: identity.role,
+    lineCodes: identity.lineCodes,
+    positionCodes: identity.positionCodes,
+  };
 }
 
 function resolveConfig(api: OpenClawPluginApi): ServiceConfig {

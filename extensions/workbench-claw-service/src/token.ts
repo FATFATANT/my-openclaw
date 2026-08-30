@@ -1,6 +1,12 @@
 import crypto from "node:crypto";
 
-export type WorkbenchIdentity = { sub: string; name: string; role: string };
+export type WorkbenchIdentity = {
+  sub: string;
+  name: string;
+  role: string;
+  lineCodes: string[];
+  positionCodes: string[];
+};
 
 type JwtClaims = WorkbenchIdentity & {
   iss: string;
@@ -16,6 +22,21 @@ function encode(value: string | Buffer): string {
 
 function sign(content: string, secret: string): Buffer {
   return crypto.createHmac("sha256", secret).update(content).digest();
+}
+
+function stringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string" && item.trim().length > 0);
+}
+
+function identityFromClaims(claims: JwtClaims): WorkbenchIdentity {
+  return {
+    sub: claims.sub,
+    name: claims.name,
+    role: claims.role,
+    lineCodes: stringArray(claims.lineCodes),
+    positionCodes: stringArray(claims.positionCodes),
+  };
 }
 
 function parseClaims(token: string, secret: string): JwtClaims | null {
@@ -51,9 +72,7 @@ function parseClaims(token: string, secret: string): JwtClaims | null {
 
 export function verifyWorkbenchToken(token: string, secret: string): WorkbenchIdentity | null {
   const claims = parseClaims(token, secret);
-  return claims?.iss === "ai-workbench"
-    ? { sub: claims.sub, name: claims.name, role: claims.role }
-    : null;
+  return claims?.iss === "ai-workbench" ? identityFromClaims(claims) : null;
 }
 
 export function issueClawToken(identity: WorkbenchIdentity, secret: string, ttlSeconds: number) {
@@ -75,6 +94,6 @@ export function issueClawToken(identity: WorkbenchIdentity, secret: string, ttlS
 export function verifyClawToken(token: string, secret: string): WorkbenchIdentity | null {
   const claims = parseClaims(token, secret);
   return claims?.iss === "openclaw-workbench" && claims.aud === "ai-workbench-mcp"
-    ? { sub: claims.sub, name: claims.name, role: claims.role }
+    ? identityFromClaims(claims)
     : null;
 }

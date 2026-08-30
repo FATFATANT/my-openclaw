@@ -13,6 +13,8 @@ function workbenchToken(expOffsetSeconds = 3600): string {
       sub: "user-1",
       name: "测试用户",
       role: "manager",
+      lineCodes: ["SMALL_MICRO"],
+      positionCodes: ["CUSTOMER_MANAGER"],
       iat: now,
       exp: now + expOffsetSeconds,
     }),
@@ -25,7 +27,13 @@ function workbenchToken(expOffsetSeconds = 3600): string {
 describe("workbench claw tokens", () => {
   it("exchanges a valid workbench token for a claw token", () => {
     const identity = verifyWorkbenchToken(workbenchToken(), secret);
-    expect(identity).toEqual({ sub: "user-1", name: "测试用户", role: "manager" });
+    expect(identity).toEqual({
+      sub: "user-1",
+      name: "测试用户",
+      role: "manager",
+      lineCodes: ["SMALL_MICRO"],
+      positionCodes: ["CUSTOMER_MANAGER"],
+    });
     const issued = issueClawToken(identity!, secret, 3600);
     expect(verifyClawToken(issued.token, secret)).toEqual(identity);
   });
